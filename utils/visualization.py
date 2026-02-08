@@ -31,7 +31,7 @@ def create_overlay(original_image, mask, alpha=0.5):
     overlay = cv2.addWeighted(original_uint8, 1 - alpha, colored_mask, alpha, 0)
     return overlay
 
-def create_results_zip(original_image, mask, overlay):
+def create_results_zip(original_image, mask, overlay, stats_json_bytes=None):
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
         original_pil = Image.fromarray((original_image * 255).astype(np.uint8))
@@ -48,6 +48,9 @@ def create_results_zip(original_image, mask, overlay):
         overlay_bytes = io.BytesIO()
         overlay_pil.save(overlay_bytes, format='PNG')
         zip_file.writestr('segmentation_overlay.png', overlay_bytes.getvalue())
+
+        if stats_json_bytes is not None:
+            zip_file.writestr('segmentation_stats.json', stats_json_bytes)
     
     return zip_buffer.getvalue()
 

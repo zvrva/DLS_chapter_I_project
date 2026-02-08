@@ -6,6 +6,7 @@ import tempfile
 import os
 import hashlib
 import io
+import json
 from models.unet import UNet, UNetV3
 from utils.image_processing import load_tiff_image, preprocess_image, postprocess_mask
 from utils.car_detection import load_car_detector, scan_car_bboxes
@@ -394,7 +395,29 @@ def main():
         st.markdown("---")
         st.subheader("Сохранение результатов")
 
-        col_save1, col_save2, col_save3 = st.columns(3)
+        stats_json = {
+            "segmentation": {
+                "total_pixels": int(total_pixels),
+                "building_pixels": int(building_pixels),
+                "building_percentage": float(building_percentage),
+                "building_area_m2": float(building_area_m2) if building_area_m2 is not None else None,
+            },
+            "area_estimation": {
+                "cars_detected": int(cars_detected),
+                "avg_bbox_area_px": float(avg_bbox_area_px) if avg_bbox_area_px is not None else None,
+                "estimated_building_area_m2": float(building_area_m2) if building_area_m2 is not None else None,
+            },
+            "params": {
+                "segmentation_threshold": float(threshold),
+                "overlay_alpha": float(alpha),
+                "car_score_threshold": float(car_score_thr),
+                "target_cars": int(target_cars) if target_cars is not None else None,
+                "avg_car_area_m2": float(AVG_CAR_AREA_M2),
+            },
+        }
+        stats_json_bytes = json.dumps(stats_json, ensure_ascii=False, indent=2).encode("utf-8")
+
+        col_save1, col_save2, col_save3, col_save4 = st.columns(4)
 
         with col_save1:
             mask_pil = Image.fromarray((final_mask * 255).astype(np.uint8))
@@ -425,7 +448,16 @@ def main():
             )
 
         with col_save3:
-            zip_data = create_results_zip(original_image, final_mask, overlay)
+            st.download_button(
+                label="Скачать статистику (JSON)",
+                data=stats_json_bytes,
+                file_name="segmentation_stats.json",
+                mime="application/json",
+                help="Скачать статистику и параметры в JSON"
+            )
+
+        with col_save4:
+            zip_data = create_results_zip(original_image, final_mask, overlay, stats_json_bytes=stats_json_bytes)
 
             st.download_button(
                 label="Скачать все (ZIP)",
